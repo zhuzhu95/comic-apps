@@ -8,8 +8,6 @@ on:
 jobs:
   build-windows:
     runs-on: windows-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v5
 
@@ -23,12 +21,11 @@ jobs:
         run: npm ci
 
       - name: 构建 Windows 安装包
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run tauri build -- --target x86_64-pc-windows-msvc
+
+      - name: 上传安装包产物
+        uses: actions/upload-artifact@v4
         with:
-          tagName: v__VERSION__
-          releaseName: "ComicReader v__VERSION__"
-          releaseDraft: true
-          prerelease: false
-          args: --target x86_64-pc-windows-msvc
+          name: ComicReader-v0.1.0-windows-x64
+          path: src-tauri/target/x86_64-pc-windows-msvc/release/bundle/
+          if-no-files-found: error
