@@ -1,0 +1,64 @@
+:root {
+  font-family: "PingFang SC", "Microsoft YaHei", Inter, Avenir, Helvetica, Arial, sans-serif;
+  font-size: 15px;
+  color: #e8e8e8;
+  background-color: #1b1b1f;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+button {
+  border-radius: 6px;
+  border: 1px solid #3a3a42;
+  padding: 0.45em 1em;
+  font-size: 0.95em;
+  font-family: inherit;
+  color: #e8e8e8;
+  background-color: #2a2a32;
+  cursor: pointer;
+}
+
+button:hover {
+  border-color: #5a5a6a;
+  background-color: #34343e;
+}
+
+input {
+  border-radius: 6px;
+  border: 1px solid #3a3a42;
+  padding: 0.45em 0.8em;
+  font-size: 0.95em;
+  font-family: inherit;
+  color: #e8e8e8;
+  background-color: #26262d;
+  outline: none;
+}
+
+input:focus {
+  border-color: #6a6a8a;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #3a3a44;
+  border-radius: 4px;
+}
