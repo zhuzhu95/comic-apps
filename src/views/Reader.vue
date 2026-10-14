@@ -1,5 +1,5 @@
 <script setup>
-import { onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { invoke } from "@tauri-apps/api/core";
 import { convertFileSrc } from "@tauri-apps/api/core";
@@ -15,6 +15,7 @@ const pageCount = ref(0);
 const currentPage = ref(0); // 0 起始
 const mode = ref("paged"); // paged | scroll
 const direction = ref(localStorage.getItem("readDirection") || "ltr"); // ltr | rtl
+const spread = ref(localStorage.getItem("pageSpread") || "single"); // single | double
 const showToolbar = ref(true);
 
 function pageUrl(index) {
@@ -65,12 +66,43 @@ function flushProgress() {
 }
 
 // ---------- 翻页模式 ----------
+const pageStep = computed(() => (spread.value === "double" ? 2 : 1));
+
 function nextPage() {
-  if (currentPage.value < pageCount.value - 1) currentPage.value++;
+  currentPage.value = Math.min(currentPage.value + pageStep.value, pageCount.value - 1);
 }
 
 function prevPage() {
-  if (currentPage.value > 0) currentPage.value--;
+  currentPage.value = Math.max(currentPage.value - pageStep.value, 0);
+}
+
+// 当前要显示的页码列表（DOM 顺序；rtl 时当前页在右、下一页在左）
+const spreadPages = computed(() => {
+  if (mode.value !== "paged" || spread.value === "single") {
+    return [currentPage.value];
+  }
+  const next = currentPage.value + 1;
+  const hasNext = next < pageCount.value;
+  if (direction.value === "rtl") {
+    return hasNext ? [next, currentPage.value] : [currentPage.value];
+  }
+  return hasNext ? [currentPage.value, next] : [currentPage.value];
+});
+
+const pageInfoText = computed(() => {
+  if (
+    mode.value === "paged" &&
+    spread.value === "double" &&
+    currentPage.value + 1 < pageCount.value
+  ) {
+    return `${currentPage.value + 1}-${currentPage.value + 2} / ${pageCount.value}`;
+  }
+  return `${currentPage.value + 1} / ${pageCount.value}`;
+});
+
+function toggleSpread() {
+  spread.value = spread.value === "single" ? "double" : "single";
+  localStorage.setItem("pageSpread", spread.value);
 }
 
 // 日漫（rtl）时「下一页」在左边
@@ -151,11 +183,14 @@ function back() {
     <div v-else-if="error" class="center error">{{ error }} <button @click.stop="back()">返回</button></div>
 
     <template v-else>
-      <!-- 工具条 -->
+      <!-- 工具条（占位不遮挡漫画） -->
       <div v-if="showToolbar" class="toolbar" @click.stop>
         <button @click="back()">← 返回</button>
-        <span class="page-info">{{ currentPage + 1 }} / {{ pageCount }}</span>
+        <span class="page-info">{{ pageInfoText }}</span>
         <div class="spacer" />
+        <button v-if="mode === 'paged'" @click="toggleSpread()">
+          {{ spread === "double" ? "双页模式" : "单页模式" }}
+        </button>
         <button v-if="mode === 'paged'" @click="toggleDirection()">
           {{ direction === "rtl" ? "日漫模式（右→左）" : "普通模式（左→右）" }}
         </button>
@@ -166,7 +201,9 @@ function back() {
 
       <!-- 翻页模式 -->
       <div v-if="mode === 'paged'" class="paged">
-        <img :src="pageUrl(currentPage)" :key="currentPage" alt="page" draggable="false" />
+        <div v-for="i in spreadPages" :key="i" class="page-slot">
+          <img :src="pageUrl(i)" alt="page" draggable="false" />
+        </div>
       </div>
 
       <!-- 条漫模式 -->
@@ -191,10 +228,12 @@ function back() {
   background: #101013;
   position: relative;
   user-select: none;
+  display: flex;
+  flex-direction: column;
 }
 
 .center {
-  height: 100%;
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -211,17 +250,12 @@ function back() {
 }
 
 .toolbar {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 10;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 8px 12px;
-  background: rgba(20, 20, 24, 0.85);
-  backdrop-filter: blur(4px);
+  background: rgba(20, 20, 24, 0.95);
 }
 
 .spacer {
@@ -234,20 +268,30 @@ function back() {
 }
 
 .paged {
-  height: 100%;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+}
+
+.page-slot {
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.paged img {
+.page-slot img {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
 }
 
 .scroll-container {
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
