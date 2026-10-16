@@ -50,13 +50,44 @@ fn read_settings(app: &AppHandle) -> Option<serde_json::Value> {
     serde_json::from_str(&content).ok()
 }
 
-fn write_settings(app: &AppHandle, library: &Path) -> Result<(), String> {
-    let json = serde_json::json!({ "library": library });
+fn write_settings(app: &AppHandle, patch: serde_json::Value) -> Result<(), String> {
+    let mut json = read_settings(app).unwrap_or_else(|| serde_json::json!({}));
+    let (Some(obj), Some(patch_obj)) = (json.as_object_mut(), patch.as_object()) else {
+        return Err("设置格式错误".to_string());
+    };
+    for (k, v) in patch_obj {
+        obj.insert(k.clone(), v.clone());
+    }
     fs::write(
         settings_path(app)?,
         serde_json::to_string_pretty(&json).map_err(|e| format!("序列化设置失败: {e}"))?,
     )
     .map_err(|e| format!("保存设置失败: {e}"))
+}
+
+/// 应用设置（供设置页使用）
+#[derive(serde::Serialize)]
+pub struct AppSettings {
+    pub library: Option<String>,
+    pub auto_update: bool,
+}
+
+/// 获取应用设置
+#[tauri::command]
+pub fn get_app_settings(app: AppHandle, state: State<'_, AppState>) -> AppSettings {
+    let auto_update = read_settings(&app)
+        .and_then(|s| s.get("auto_update").and_then(|v| v.as_bool()))
+        .unwrap_or(true);
+    AppSettings {
+        library: state.library.lock().clone().map(|p| p.to_string_lossy().to_string()),
+        auto_update,
+    }
+}
+
+/// 设置启动时是否自动检查更新
+#[tauri::command]
+pub fn set_auto_update(app: AppHandle, enabled: bool) -> Result<(), String> {
+    write_settings(&app, serde_json::json!({ "auto_update": enabled }))
 }
 
 /// 启动时恢复上次的资源库设置
@@ -96,7 +127,7 @@ pub fn set_library(
         return Err("所选路径不是文件夹".to_string());
     }
     let conn = db::open(&path)?;
-    write_settings(&app, &path)?;
+    write_settings(&app, serde_json::json!({ "library": path }))?;
     *state.library.lock() = Some(path.clone());
     *state.db.lock() = Some(conn);
     scan_library(state)

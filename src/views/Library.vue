@@ -54,6 +54,7 @@ function openReader(comic) {
       <h1>漫画阅读器</h1>
       <p>选择一个文件夹作为漫画资源库。<br />该文件夹下每个子文件夹 / zip / pdf 都会被识别为一部漫画。</p>
       <button class="primary" @click="store.chooseLibrary()">选择资源库文件夹</button>
+      <p><a class="settings-link" @click="router.push('/settings')">设置</a></p>
       <p v-if="store.error" class="error">{{ store.error }}</p>
     </div>
 
@@ -70,6 +71,7 @@ function openReader(comic) {
         <button title="导入内含图片或 zip 的文件夹" @click="store.importFolder()">导入文件夹</button>
         <button title="重新扫描资源库" @click="store.scan()">扫描</button>
         <button title="更换资源库文件夹" @click="store.chooseLibrary()">更换书库</button>
+        <button title="设置" @click="router.push('/settings')">设置</button>
         <div class="view-toggle">
           <button
             :class="{ active: store.viewMode === 'grid' }"
@@ -143,6 +145,16 @@ function openReader(comic) {
 .primary {
   font-size: 1.05em;
   padding: 0.6em 1.6em;
+}
+
+.settings-link {
+  color: #888;
+  cursor: pointer;
+  font-size: 0.9em;
+}
+
+.settings-link:hover {
+  color: #bbb;
 }
 
 .toolbar {
