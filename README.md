@@ -26,7 +26,7 @@ npm run tauri build
 | Secret | 值 |
 | --- | --- |
 | `TAURI_SIGNING_PRIVATE_KEY` | `~/.tauri/comic-apps.key` 文件的全部内容（`cat ~/.tauri/comic-apps.key` 查看） |
-| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | 私钥密码；当前私钥未设密码，填空字符串即可 |
+| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | 私钥密码；当前私钥未设密码，**可以不创建此 secret**（引用不存在的 secret 会得到空字符串，正好等于无密码） |
 
 > ⚠️ 私钥 `~/.tauri/comic-apps.key` 不要提交到仓库、不要丢失。丢失后无法签发客户端能接受的更新，只能重新生成密钥对并让所有用户手动安装一次新版本。
 
@@ -39,15 +39,47 @@ npx tauri signer generate -w ~/.tauri/comic-apps.key
 
 ## 发版流程
 
-1. 提升版本号（保持 `package.json`、`src-tauri/tauri.conf.json`、`src-tauri/Cargo.toml` 三处一致，可用 `npm version patch|minor|major` 后手动同步另两处）。
-2. 提交改动并打 tag 推送：
+以发布 **v0.2.0** 为例，共 5 步：
 
-   ```bash
-   git tag v0.2.0
-   git push && git push --tags
-   ```
+**第 1 步：把三个文件的版本号改成 0.2.0**
 
-3. CI（`.github/workflows/release.yml`）自动完成：构建 Windows 安装包与签名更新包 → 创建对应 tag 的 GitHub Release → 上传产物并生成 `latest.json`。
-4. 旧版本客户端下次启动时会自动检测到新版本并提示更新。
+- `package.json` → `"version": "0.2.0"`
+- `src-tauri/tauri.conf.json` → `"version": "0.2.0"`
+- `src-tauri/Cargo.toml` → `version = "0.2.0"`
+
+**第 2 步：更新 Cargo.lock**
+
+```bash
+cd src-tauri && cargo check && cd ..
+```
+
+这一步会把 `Cargo.lock` 里的版本号同步成 0.2.0（版本号不一致会导致打包出来的应用仍显示旧版本）。
+
+**第 3 步：提交并推送**
+
+```bash
+git add -A
+git commit -m "发布 v0.2.0"
+git push
+```
+
+**第 4 步：打 tag 并推送（这一步触发 CI 发版）**
+
+```bash
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+tag 必须以 `v` 开头，workflow 才会触发。
+
+**第 5 步：确认发布结果**
+
+1. 打开仓库的 **Actions** 页面，能看到 `release` workflow 在运行，Windows 构建大约需要 10~20 分钟。
+2. 跑完后打开 **Releases** 页面，应该出现 **v0.2.0**，附件里要有：
+   - `.msi` / `.exe` 安装包
+   - 对应的 `.sig` 签名文件
+   - `latest.json`（自动更新的清单文件）
+
+有这些产物就说明自动更新链路通了，旧版本客户端下次启动时会自动检测到新版本并提示更新。
 
 也可在 GitHub Actions 页面手动触发 `release` workflow（workflow_dispatch）。
